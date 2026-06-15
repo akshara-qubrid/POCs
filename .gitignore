@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+
+# Secrets
+.env
+
+# Memory/json storage
+*_memory.json
+apm_memory.json
