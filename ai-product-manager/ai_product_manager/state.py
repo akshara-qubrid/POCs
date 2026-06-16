@@ -67,12 +67,17 @@ class SharedState:
         self.save_memory()
 
     def save_memory(self) -> None:
+        if self.memory_path == ":memory:":
+            return  # in-memory only, no persistence
         path = Path(self.memory_path)
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
             json.dump(self.memory_store, f, indent=2)
 
     def load_memory(self) -> None:
+        if self.memory_path == ":memory:":
+            self.memory_store = []
+            return
         path = Path(self.memory_path)
         if path.exists():
             try:

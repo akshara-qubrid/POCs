@@ -4,6 +4,9 @@ from typing import Any, Callable, Dict, List
 from .llm_client import chat_completion, get_response_text
 from .utils import extract_json
 
+# This POC uses mistralai/Mistral-7B-Instruct-v0.3 as its primary model.
+_MODEL = "mistralai/Mistral-7B-Instruct-v0.3"
+
 
 @dataclass
 class Tool:
@@ -12,12 +15,12 @@ class Tool:
     func: Callable[[str], Any]
 
 
-def _execute_model(prompt: str, model: str, max_tokens: int = 600) -> Dict[str, Any]:
+def _execute_model(prompt: str, max_tokens: int = 800) -> Dict[str, Any]:
     messages = [
-        {"role": "system", "content": "You are a structured business analysis tool. Respond with valid JSON only."},
+        {"role": "system", "content": "You are a structured business analysis tool. Respond with valid JSON only. Do not use markdown code fences."},
         {"role": "user", "content": prompt},
     ]
-    response = chat_completion(model=model, messages=messages, max_tokens=max_tokens, temperature=0.2)
+    response = chat_completion(model=_MODEL, messages=messages, max_tokens=max_tokens, temperature=0.2)
     text = get_response_text(response)
     return extract_json(text)
 
@@ -28,7 +31,7 @@ def market_opportunity(idea: str) -> Dict[str, Any]:
         "Return JSON with fields: market_summary, monetization_strategy, user_personas, opportunity_score.\n"
         f"idea: {idea}"
     )
-    return _execute_model(prompt, "mistralai/Mistral-7B-Instruct-v0.3")
+    return _execute_model(prompt)
 
 
 def technical_assessment(idea: str) -> Dict[str, Any]:
@@ -37,7 +40,7 @@ def technical_assessment(idea: str) -> Dict[str, Any]:
         "Return JSON with fields: feasibility, architecture_recommendation, complexity_estimate, risks.\n"
         f"idea: {idea}"
     )
-    return _execute_model(prompt, "openai/gpt-oss-120b")
+    return _execute_model(prompt)
 
 
 def competitive_analysis(idea: str) -> Dict[str, Any]:
@@ -46,7 +49,7 @@ def competitive_analysis(idea: str) -> Dict[str, Any]:
         "Return JSON with fields: competitors, differentiators, competitive_risks.\n"
         f"idea: {idea}"
     )
-    return _execute_model(prompt, "mistralai/Mistral-7B-Instruct-v0.3")
+    return _execute_model(prompt)
 
 
 def roadmap_planner(idea: str) -> Dict[str, Any]:
@@ -55,7 +58,7 @@ def roadmap_planner(idea: str) -> Dict[str, Any]:
         "Return JSON with fields: user_stories, mvp_roadmap, release_milestones.\n"
         f"idea: {idea}"
     )
-    return _execute_model(prompt, "openai/gpt-oss-120b")
+    return _execute_model(prompt)
 
 
 def get_tools() -> List[Tool]:

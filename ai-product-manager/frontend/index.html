@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Product Manager</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #222636;
+      --border: #2e3350;
+      --accent: #6c63ff;
+      --accent2: #a78bfa;
+      --text: #e2e8f0;
+      --muted: #8892b0;
+      --success: #34d399;
+      --warning: #fbbf24;
+      --danger: #f87171;
+      --radius: 12px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ---- Header ---- */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 18px 32px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    header .logo {
+      width: 38px; height: 38px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+    }
+    header h1 { font-size: 1.25rem; font-weight: 700; }
+    header .badge {
+      margin-left: auto;
+      background: rgba(108,99,255,0.18);
+      color: var(--accent2);
+      border: 1px solid var(--accent);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+    }
+
+    /* ---- Layout ---- */
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      padding: 28px 32px;
+      max-width: 1300px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+
+    /* ---- Card ---- */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+    }
+    .card h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card h2 .icon { font-size: 1.1rem; }
+
+    /* ---- Input area ---- */
+    textarea {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.92rem;
+      padding: 14px 16px;
+      resize: vertical;
+      min-height: 120px;
+      transition: border-color 0.2s;
+      outline: none;
+    }
+    textarea::placeholder { color: var(--muted); }
+    textarea:focus { border-color: var(--accent); }
+
+    /* ---- Examples ---- */
+    .examples { margin-top: 12px; }
+    .examples p { font-size: 0.8rem; color: var(--muted); margin-bottom: 8px; }
+    .examples-list { display: flex; flex-wrap: wrap; gap: 8px; }
+    .example-chip {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 5px 12px;
+      font-size: 0.78rem;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .example-chip:hover { border-color: var(--accent); color: var(--accent2); }
+
+    /* ---- Button ---- */
+    button.primary {
+      margin-top: 16px;
+      width: 100%;
+      padding: 13px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    button.primary:hover { opacity: 0.88; }
+    button.primary:active { transform: scale(0.98); }
+    button.primary:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    /* ---- Status ---- */
+    .status {
+      margin-top: 14px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      display: none;
+    }
+    .status.running { display: flex; align-items: center; gap: 10px; background: rgba(108,99,255,0.12); border: 1px solid var(--accent); color: var(--accent2); }
+    .status.error { display: block; background: rgba(248,113,113,0.12); border: 1px solid var(--danger); color: var(--danger); }
+
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid var(--accent2);
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ---- Results ---- */
+    .results-panel { display: flex; flex-direction: column; gap: 16px; }
+
+    .result-section {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .result-section-header {
+      padding: 12px 16px;
+      background: rgba(108,99,255,0.08);
+      border-bottom: 1px solid var(--border);
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--accent2);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .result-section-body { padding: 16px; }
+
+    /* Fields */
+    .field { margin-bottom: 14px; }
+    .field:last-child { margin-bottom: 0; }
+    .field-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 5px;
+    }
+    .field-value { font-size: 0.9rem; color: var(--text); line-height: 1.55; }
+
+    /* Score badge */
+    .score-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 42px; height: 42px;
+      border-radius: 10px;
+      font-size: 1.1rem;
+      font-weight: 800;
+    }
+    .score-high { background: rgba(52,211,153,0.15); color: var(--success); border: 1px solid var(--success); }
+    .score-mid  { background: rgba(251,191,36,0.15);  color: var(--warning); border: 1px solid var(--warning); }
+    .score-low  { background: rgba(248,113,113,0.15); color: var(--danger);  border: 1px solid var(--danger);  }
+
+    /* Tag list */
+    .tag-list { display: flex; flex-wrap: wrap; gap: 7px; }
+    .tag {
+      background: rgba(108,99,255,0.14);
+      border: 1px solid rgba(108,99,255,0.3);
+      color: var(--accent2);
+      border-radius: 20px;
+      padding: 3px 10px;
+      font-size: 0.78rem;
+    }
+
+    /* Ordered list */
+    .ol-items { list-style: none; counter-reset: item; }
+    .ol-items li { counter-increment: item; display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; font-size: 0.88rem; line-height: 1.5; }
+    .ol-items li::before {
+      content: counter(item);
+      min-width: 22px; height: 22px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 50%;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 0.72rem; font-weight: 700;
+      flex-shrink: 0; margin-top: 1px;
+    }
+
+    /* JSON fallback */
+    pre.json-raw {
+      background: #0d0f1a;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      font-family: 'Fira Code', 'Courier New', monospace;
+      font-size: 0.78rem;
+      color: #a8b4d8;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* Memory section */
+    .memory-list { display: flex; flex-direction: column; gap: 10px; max-height: 320px; overflow-y: auto; }
+    .memory-item {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 0.82rem;
+    }
+    .memory-item .mi-idea { color: var(--accent2); font-weight: 600; margin-bottom: 4px; }
+    .memory-item .mi-meta { color: var(--muted); font-size: 0.75rem; }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--muted);
+    }
+    .empty-state .es-icon { font-size: 2.5rem; margin-bottom: 10px; }
+    .empty-state p { font-size: 0.88rem; line-height: 1.6; }
+
+    /* LangSmith link */
+    .ls-link {
+      display: inline-flex; align-items: center; gap: 6px;
+      color: var(--accent2); font-size: 0.8rem; text-decoration: none;
+      background: rgba(108,99,255,0.1);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 12px;
+      margin-top: 10px;
+      transition: background 0.2s;
+    }
+    .ls-link:hover { background: rgba(108,99,255,0.22); }
+
+    /* API URL input */
+    .api-row { display: flex; gap: 8px; margin-bottom: 16px; }
+    .api-row input {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--muted);
+      font-size: 0.82rem;
+      padding: 8px 12px;
+      outline: none;
+    }
+    .api-row input:focus { border-color: var(--accent); color: var(--text); }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🤖</div>
+  <div>
+    <h1>AI Product Manager</h1>
+    <div style="font-size:0.78rem;color:var(--muted);margin-top:2px;">PRD generator · Mistral-7B · Qubrid</div>
+  </div>
+  <span class="badge">POC</span>
+</header>
+
+<main>
+  <!-- LEFT: Input panel -->
+  <div style="display:flex;flex-direction:column;gap:20px;">
+    <div class="card">
+      <h2><span class="icon">💡</span> Product Idea</h2>
+      <div class="api-row">
+        <input id="apiUrl" type="text" value="http://localhost:8001" placeholder="API URL" />
+      </div>
+      <textarea id="ideaInput" placeholder="Describe your product idea…&#10;&#10;e.g. An AI-powered personal finance tracker for Gen Z users that learns spending habits and suggests savings goals."></textarea>
+      <div class="examples">
+        <p>Try an example:</p>
+        <div class="examples-list">
+          <span class="example-chip" onclick="fillExample(this)">AI finance tracker for Gen Z</span>
+          <span class="example-chip" onclick="fillExample(this)">B2B SaaS for automated invoice processing</span>
+          <span class="example-chip" onclick="fillExample(this)">On-demand pet care marketplace</span>
+          <span class="example-chip" onclick="fillExample(this)">AR navigation app for tourists</span>
+        </div>
+      </div>
+      <button class="primary" id="runBtn" onclick="runPRD()">
+        <span id="btnIcon">▶</span>
+        <span id="btnLabel">Generate PRD</span>
+      </button>
+      <div class="status running" id="status">
+        <div class="spinner"></div>
+        <span>Running analysis pipeline — this may take 30–60 seconds…</span>
+      </div>
+      <div class="status error" id="errStatus"></div>
+      <a class="ls-link" href="https://smith.langchain.com" target="_blank" rel="noreferrer">
+        🔭 View traces in LangSmith ↗
+      </a>
+    </div>
+
+    <div class="card">
+      <h2><span class="icon">💾</span> Memory Store
+        <button onclick="loadMemory()" style="margin-left:auto;background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:5px 12px;cursor:pointer;font-size:0.78rem;">Refresh</button>
+      </h2>
+      <div id="memoryList" class="memory-list">
+        <div class="empty-state">
+          <div class="es-icon">📦</div>
+          <p>No persisted PRDs yet.<br>Run the pipeline to save results.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Results panel -->
+  <div class="results-panel" id="resultsPanel">
+    <div class="card" style="flex:1;">
+      <h2><span class="icon">📄</span> PRD Output</h2>
+      <div id="prdOutput">
+        <div class="empty-state">
+          <div class="es-icon">🚀</div>
+          <p>Your generated PRD will appear here.<br>Enter a product idea and click <strong>Generate PRD</strong>.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+  const API_URL = () => document.getElementById('apiUrl').value.replace(/\/$/, '');
+
+  function fillExample(el) {
+    document.getElementById('ideaInput').value = el.textContent.trim();
+  }
+
+  function setLoading(loading) {
+    const btn = document.getElementById('runBtn');
+    const icon = document.getElementById('btnIcon');
+    const label = document.getElementById('btnLabel');
+    const status = document.getElementById('status');
+    btn.disabled = loading;
+    icon.textContent = loading ? '' : '▶';
+    label.textContent = loading ? 'Generating…' : 'Generate PRD';
+    status.style.display = loading ? 'flex' : 'none';
+    if (loading) {
+      icon.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;border-color:#fff;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;"></div>';
+    }
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('errStatus');
+    el.className = 'status error';
+    el.textContent = msg;
+  }
+
+  function clearError() {
+    const el = document.getElementById('errStatus');
+    el.style.display = 'none';
+    el.textContent = '';
+  }
+
+  function scoreClass(v) {
+    if (v == null) return '';
+    const n = parseFloat(v);
+    if (n >= 7) return 'score-high';
+    if (n >= 4) return 'score-mid';
+    return 'score-low';
+  }
+
+  function renderList(arr) {
+    if (!arr || !arr.length) return '<span style="color:var(--muted);font-size:0.85rem;">None specified</span>';
+    return `<ul class="ol-items">${arr.map(s => `<li>${s}</li>`).join('')}</ul>`;
+  }
+
+  function renderPRD(data) {
+    const out = document.getElementById('prdOutput');
+    if (!data || typeof data !== 'object') {
+      out.innerHTML = `<pre class="json-raw">${JSON.stringify(data, null, 2)}</pre>`;
+      return;
+    }
+
+    let html = '';
+
+    // Summary
+    if (data.summary) {
+      html += `<div class="result-section">
+        <div class="result-section-header">📝 Summary</div>
+        <div class="result-section-body"><div class="field-value">${data.summary}</div></div>
+      </div>`;
+    }
+
+    // Scores row
+    const scores = [];
+    if (data.opportunity_score != null) scores.push({ label: 'Opportunity', val: data.opportunity_score });
+    if (scores.length) {
+      html += `<div class="result-section">
+        <div class="result-section-header">📊 Scores</div>
+        <div class="result-section-body" style="display:flex;gap:16px;flex-wrap:wrap;">
+          ${scores.map(s => `
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div class="score-badge ${scoreClass(s.val)}">${s.val}</div>
+              <div><div class="field-label">${s.label}</div></div>
+            </div>
+          `).join('')}
+        </div>
+      </div>`;
+    }
+
+    // User stories
+    if (data.user_stories) {
+      html += `<div class="result-section">
+        <div class="result-section-header">👤 User Stories</div>
+        <div class="result-section-body">${renderList(data.user_stories)}</div>
+      </div>`;
+    }
+
+    // MVP Roadmap
+    if (data.mvp_roadmap) {
+      html += `<div class="result-section">
+        <div class="result-section-header">🗺️ MVP Roadmap</div>
+        <div class="result-section-body">${renderList(data.mvp_roadmap)}</div>
+      </div>`;
+    }
+
+    // Tech & Business recommendations
+    if (data.technical_recommendations || data.business_recommendations) {
+      html += `<div class="result-section">
+        <div class="result-section-header">⚙️ Recommendations</div>
+        <div class="result-section-body">`;
+      if (data.technical_recommendations) html += `<div class="field"><div class="field-label">Technical</div><div class="field-value">${data.technical_recommendations}</div></div>`;
+      if (data.business_recommendations)  html += `<div class="field"><div class="field-label">Business</div><div class="field-value">${data.business_recommendations}</div></div>`;
+      html += `</div></div>`;
+    }
+
+    // Risks
+    if (data.risks) {
+      html += `<div class="result-section">
+        <div class="result-section-header">⚠️ Risks</div>
+        <div class="result-section-body">${renderList(data.risks)}</div>
+      </div>`;
+    }
+
+    // Fallback: remaining keys
+    const rendered = ['summary','opportunity_score','user_stories','mvp_roadmap','technical_recommendations','business_recommendations','risks'];
+    const extra = Object.entries(data).filter(([k]) => !rendered.includes(k));
+    if (extra.length) {
+      html += `<div class="result-section">
+        <div class="result-section-header">📎 Additional Fields</div>
+        <div class="result-section-body"><pre class="json-raw">${JSON.stringify(Object.fromEntries(extra), null, 2)}</pre></div>
+      </div>`;
+    }
+
+    out.innerHTML = html || `<pre class="json-raw">${JSON.stringify(data, null, 2)}</pre>`;
+  }
+
+  async function runPRD() {
+    const idea = document.getElementById('ideaInput').value.trim();
+    if (!idea) { showError('Please enter a product idea.'); return; }
+    clearError();
+    setLoading(true);
+    document.getElementById('prdOutput').innerHTML = '<div class="empty-state"><div class="spinner" style="width:30px;height:30px;border-width:3px;border-color:var(--accent);border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px;"></div><p>Running agent pipeline…</p></div>';
+
+    try {
+      const resp = await fetch(`${API_URL()}/run`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idea }),
+      });
+      if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(`Server error ${resp.status}: ${txt.slice(0, 200)}`);
+      }
+      const data = await resp.json();
+      renderPRD(data);
+      loadMemory();
+    } catch (e) {
+      showError(e.message);
+      document.getElementById('prdOutput').innerHTML = `<div class="empty-state"><div class="es-icon">❌</div><p>${e.message}</p></div>`;
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadMemory() {
+    try {
+      const resp = await fetch(`${API_URL()}/memory`);
+      if (!resp.ok) return;
+      const items = await resp.json();
+      const el = document.getElementById('memoryList');
+      if (!items || !items.length) {
+        el.innerHTML = '<div class="empty-state"><div class="es-icon">📦</div><p>No persisted PRDs yet.</p></div>';
+        return;
+      }
+      el.innerHTML = items.slice().reverse().map(item => {
+        const idea = item.idea || JSON.stringify(item).slice(0, 80);
+        const keys = item.result ? Object.keys(item.result) : [];
+        return `<div class="memory-item">
+          <div class="mi-idea">💡 ${idea.slice(0, 80)}${idea.length > 80 ? '…' : ''}</div>
+          <div class="mi-meta">Fields: ${keys.join(', ') || 'unknown'}</div>
+        </div>`;
+      }).join('');
+    } catch (_) {}
+  }
+
+  // Load memory on start
+  loadMemory();
+</script>
+</body>
+</html>
