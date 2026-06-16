@@ -1,14 +1,15 @@
+import datetime
 import json
 import os
 import time
+import uuid
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 try:
     from langsmith import Client as LangSmithClient
-    from langsmith.run_helpers import traceable  # noqa: F401 – imported for side-effects
     _LANGSMITH_AVAILABLE = True
 except ImportError:
     _LANGSMITH_AVAILABLE = False
@@ -16,13 +17,14 @@ except ImportError:
 
 def _load_dotenv() -> None:
     env_path = Path(__file__).resolve().parents[2] / ".env"
-    if env_path.exists():
-        for line in env_path.read_text().splitlines():
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            key, value = line.split("=", 1)
-            os.environ.setdefault(key.strip(), value.strip())
+    if not env_path.exists():
+        return
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        os.environ.setdefault(key.strip(), value.strip())
 
 
 _load_dotenv()
@@ -30,8 +32,10 @@ _load_dotenv()
 # Model assigned to this POC: mistralai/Mistral-7B-Instruct-v0.3
 DEFAULT_MODEL = "mistralai/Mistral-7B-Instruct-v0.3"
 
-# LangSmith project for this POC
-_LS_PROJECT = os.getenv("LANGCHAIN_PROJECT_APM", "ai-product-manager")
+
+def _ls_project() -> str:
+    """Read lazily so .env is guaranteed to be loaded first."""
+    return os.getenv("LANGCHAIN_PROJECT_APM", "ai-product-manager")
 
 
 def _get_config() -> Dict[str, str]:
@@ -42,66 +46,89 @@ def _get_config() -> Dict[str, str]:
     return {"base_url": base_url.rstrip("/"), "api_key": api_key}
 
 
-def _get_langsmith_client() -> "LangSmithClient | None":
-    """Return a LangSmith client if tracing is enabled, else None."""
+def _get_langsmith_client() -> Optional["LangSmithClient"]:
+    """Return a configured LangSmith client if tracing is enabled, else None."""
     if not _LANGSMITH_AVAILABLE:
         return None
     if os.getenv("LANGCHAIN_TRACING_V2", "").lower() not in ("true", "1"):
         return None
     api_key = os.getenv("LANGCHAIN_API_KEY")
-    endpoint = os.getenv("LANGCHAIN_ENDPOINT", "https://api.smith.langchain.com")
-    if not api_key:
+    if not api_key or api_key == "your_langsmith_api_key_here":
         return None
+    endpoint = os.getenv("LANGCHAIN_ENDPOINT", "https://api.smith.langchain.com")
     try:
         return LangSmithClient(api_url=endpoint, api_key=api_key)
-    except Exception:
+    except Exception as exc:
+        print(f"  [LangSmith] client init failed: {exc}")
         return None
 
 
-def _post_trace(
+def _trace(
     client: "LangSmithClient",
+    run_id: uuid.UUID,
     run_name: str,
-    inputs: dict,
-    outputs: dict,
-    start_time: float,
-    end_time: float,
-    error: str | None = None,
-    metadata: dict | None = None,
+    messages: list,
+    response: dict,
+    start_dt: datetime.datetime,
+    end_dt: datetime.datetime,
+    error: Optional[str],
+    model: str,
+    max_tokens: int,
+    temperature: float,
 ) -> None:
-    """Fire-and-forget: post a single LLM trace to LangSmith."""
+    """Create + update a LangSmith LLM run — the correct two-step pattern."""
     try:
-        import datetime
-        usage = {}
-        if outputs and not error:
-            u = outputs.get("usage") or outputs.get("usage_metadata") or {}
-            usage = {
-                "prompt_tokens": u.get("prompt_tokens", u.get("input_tokens", 0)),
-                "completion_tokens": u.get("completion_tokens", u.get("output_tokens", 0)),
-                "total_tokens": u.get("total_tokens", 0),
-            }
+        project = _ls_project()
 
+        # Step 1: create the run (open it)
         client.create_run(
             name=run_name,
             run_type="llm",
-            project_name=_LS_PROJECT,
-            inputs={"messages": inputs.get("messages", [])},
-            outputs={"response": outputs} if not error else {},
-            error=error,
-            start_time=datetime.datetime.utcfromtimestamp(start_time),
-            end_time=datetime.datetime.utcfromtimestamp(end_time),
+            project_name=project,
+            inputs={"messages": messages},
+            id=str(run_id),
+            start_time=start_dt,
             extra={
                 "metadata": {
-                    **(metadata or {}),
-                    "model": inputs.get("model", "unknown"),
-                    "max_tokens": inputs.get("max_tokens"),
-                    "project": _LS_PROJECT,
+                    "model": model,
+                    "max_tokens": max_tokens,
+                    "temperature": temperature,
+                    "project": project,
+                }
+            },
+        )
+
+        # Step 2: close the run with outputs / error and token usage
+        usage = {}
+        if response and not error:
+            u = (
+                response.get("usage")
+                or response.get("usage_metadata")
+                or {}
+            )
+            usage = {
+                "prompt_tokens":     u.get("prompt_tokens",     u.get("input_tokens",  0)),
+                "completion_tokens": u.get("completion_tokens", u.get("output_tokens", 0)),
+                "total_tokens":      u.get("total_tokens", 0),
+            }
+
+        client.update_run(
+            run_id=str(run_id),
+            end_time=end_dt,
+            outputs={"response": response} if not error else {},
+            error=error,
+            extra={
+                "metadata": {
+                    "model": model,
+                    "max_tokens": max_tokens,
+                    "temperature": temperature,
+                    "project": project,
                 },
                 "usage_metadata": usage,
             },
         )
     except Exception as exc:
-        # Tracing failures must never break the main pipeline
-        print(f"  [LangSmith] trace post failed: {exc}")
+        print(f"  [LangSmith] trace failed: {exc}")
 
 
 def chat_completion(
@@ -131,9 +158,10 @@ def chat_completion(
     )
 
     ls_client = _get_langsmith_client()
-    start = time.time()
-    error_msg = None
-    response = {}
+    run_id = uuid.uuid4()
+    start_dt = datetime.datetime.now(datetime.timezone.utc)
+    error_msg: Optional[str] = None
+    response: Dict = {}
 
     try:
         with urllib.request.urlopen(req, timeout=120) as resp:
@@ -142,17 +170,20 @@ def chat_completion(
         body = exc.read().decode("utf-8", errors="replace")
         error_msg = f"Qubrid API HTTP {exc.code}: {body}"
     finally:
-        end = time.time()
+        end_dt = datetime.datetime.now(datetime.timezone.utc)
         if ls_client:
-            _post_trace(
+            _trace(
                 client=ls_client,
+                run_id=run_id,
                 run_name=run_name,
-                inputs={**payload, "model": model},
-                outputs=response,
-                start_time=start,
-                end_time=end,
+                messages=messages,
+                response=response,
+                start_dt=start_dt,
+                end_dt=end_dt,
                 error=error_msg,
-                metadata={"model": model, "max_tokens": max_tokens, "temperature": temperature},
+                model=model,
+                max_tokens=max_tokens,
+                temperature=temperature,
             )
 
     if error_msg:
