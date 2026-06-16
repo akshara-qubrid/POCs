@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Startup Due Diligence</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #222636;
+      --border: #2e3350;
+      --accent: #f59e0b;
+      --accent2: #fcd34d;
+      --text: #e2e8f0;
+      --muted: #8892b0;
+      --success: #34d399;
+      --warning: #fbbf24;
+      --danger: #f87171;
+      --invest: #34d399;
+      --pass: #f87171;
+      --conditional: #fbbf24;
+      --radius: 12px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 18px 32px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    header .logo {
+      width: 38px; height: 38px;
+      background: linear-gradient(135deg, #d97706, #f59e0b);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+    }
+    header h1 { font-size: 1.25rem; font-weight: 700; }
+    header .badge {
+      margin-left: auto;
+      background: rgba(245,158,11,0.15);
+      color: var(--accent2);
+      border: 1px solid var(--accent);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+    }
+
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      gap: 24px;
+      padding: 28px 32px;
+      max-width: 1400px;
+      margin: 0 auto;
+      width: 100%;
+    }
+    @media (max-width: 960px) { main { grid-template-columns: 1fr; } }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+    }
+    .card h2 { font-size: 1rem; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+
+    textarea {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.92rem;
+      padding: 13px 15px;
+      resize: vertical;
+      min-height: 110px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    textarea::placeholder { color: var(--muted); }
+    textarea:focus { border-color: var(--accent); }
+
+    .examples { margin-top: 12px; }
+    .examples p { font-size: 0.8rem; color: var(--muted); margin-bottom: 8px; }
+    .examples-list { display: flex; flex-direction: column; gap: 7px; }
+    .example-chip {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px 12px;
+      font-size: 0.8rem; color: var(--muted); cursor: pointer;
+      transition: all 0.2s; line-height: 1.4;
+    }
+    .example-chip:hover { border-color: var(--accent); color: var(--accent2); }
+
+    button.primary {
+      margin-top: 18px;
+      width: 100%;
+      padding: 13px;
+      background: linear-gradient(135deg, #d97706, #f59e0b);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    button.primary:hover { opacity: 0.88; }
+    button.primary:active { transform: scale(0.98); }
+    button.primary:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .status { margin-top: 12px; padding: 12px 16px; border-radius: 8px; font-size: 0.85rem; display: none; }
+    .status.running { display: flex; align-items: center; gap: 10px; background: rgba(245,158,11,0.1); border: 1px solid var(--accent); color: var(--accent2); }
+    .status.error { display: block; background: rgba(248,113,113,0.1); border: 1px solid var(--danger); color: var(--danger); }
+
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid var(--accent2); border-top-color: transparent;
+      border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Results */
+    .results-col { display: flex; flex-direction: column; gap: 16px; }
+
+    /* Score gauge */
+    .scores-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 16px; }
+    .score-tile {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 14px 16px;
+    }
+    .score-tile .st-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+    .score-tile .st-val { font-size: 1.6rem; font-weight: 900; }
+    .score-tile .st-bar { height: 4px; background: var(--border); border-radius: 2px; margin-top: 8px; overflow: hidden; }
+    .score-tile .st-bar-fill { height: 100%; border-radius: 2px; }
+    .st-high .st-val { color: var(--invest); }
+    .st-high .st-bar-fill { background: var(--invest); }
+    .st-mid  .st-val { color: var(--warning); }
+    .st-mid  .st-bar-fill { background: var(--warning); }
+    .st-low  .st-val { color: var(--danger); }
+    .st-low  .st-bar-fill { background: var(--danger); }
+
+    /* Recommendation pill */
+    .rec-pill {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 8px 20px; border-radius: 24px;
+      font-size: 1rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em;
+      margin-bottom: 16px;
+    }
+    .rec-invest      { background: rgba(52,211,153,0.12); color: var(--invest);      border: 2px solid var(--invest); }
+    .rec-pass        { background: rgba(248,113,113,0.12); color: var(--pass);        border: 2px solid var(--pass); }
+    .rec-conditional { background: rgba(251,191,36,0.12);  color: var(--conditional); border: 2px solid var(--conditional); }
+
+    .section-divider { height: 1px; background: var(--border); margin: 16px 0; }
+
+    .field { margin-bottom: 14px; }
+    .field:last-child { margin-bottom: 0; }
+    .field-label { font-size: 0.75rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 5px; }
+    .field-value { font-size: 0.9rem; color: var(--text); line-height: 1.55; }
+
+    .two-col-lists { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 700px) { .two-col-lists { grid-template-columns: 1fr; } }
+
+    .check-list, .cross-list { list-style: none; }
+    .check-list li, .cross-list li { display: flex; align-items: flex-start; gap: 8px; font-size: 0.88rem; margin-bottom: 8px; line-height: 1.5; }
+    .check-list li::before { content: '✓'; color: var(--invest); font-weight: 700; flex-shrink: 0; }
+    .cross-list li::before { content: '✗'; color: var(--danger); font-weight: 700; flex-shrink: 0; }
+
+    .memo-box {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 16px;
+      font-size: 0.88rem; line-height: 1.65; color: var(--text);
+      max-height: 260px; overflow-y: auto;
+      white-space: pre-wrap;
+    }
+
+    pre.json-raw {
+      background: #0d0f1a; border: 1px solid var(--border); border-radius: 8px;
+      padding: 16px; font-family: 'Fira Code','Courier New',monospace;
+      font-size: 0.78rem; color: #a8b4d8; overflow-x: auto; white-space: pre-wrap;
+    }
+
+    .memory-list { display: flex; flex-direction: column; gap: 10px; max-height: 280px; overflow-y: auto; }
+    .memory-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; font-size: 0.82rem; }
+    .memory-item .mi-rec { font-weight: 700; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+    .memory-item .mi-rec.invest      { color: var(--invest); }
+    .memory-item .mi-rec.pass        { color: var(--pass); }
+    .memory-item .mi-rec.conditional { color: var(--conditional); }
+    .memory-item .mi-startup { color: var(--text); margin-bottom: 3px; }
+    .memory-item .mi-scores { color: var(--muted); font-size: 0.75rem; }
+
+    .empty-state { text-align: center; padding: 40px 20px; color: var(--muted); }
+    .empty-state .es-icon { font-size: 2.5rem; margin-bottom: 10px; }
+    .empty-state p { font-size: 0.88rem; line-height: 1.6; }
+
+    .ls-link {
+      display: inline-flex; align-items: center; gap: 6px;
+      color: var(--accent2); font-size: 0.8rem; text-decoration: none;
+      background: rgba(245,158,11,0.08); border: 1px solid var(--border);
+      border-radius: 6px; padding: 6px 12px; margin-top: 10px; transition: background 0.2s;
+    }
+    .ls-link:hover { background: rgba(245,158,11,0.18); }
+
+    .api-row { display: flex; gap: 8px; margin-bottom: 16px; }
+    .api-row input {
+      flex: 1; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--muted); font-size: 0.82rem;
+      padding: 8px 12px; outline: none; font-family: inherit;
+    }
+    .api-row input:focus { border-color: var(--accent); color: var(--text); }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">📊</div>
+  <div>
+    <h1>Startup Due Diligence</h1>
+    <div style="font-size:0.78rem;color:var(--muted);margin-top:2px;">Investment analysis · DeepSeek-R1-70B · Qubrid</div>
+  </div>
+  <span class="badge">POC</span>
+</header>
+
+<main>
+  <!-- LEFT: Input -->
+  <div style="display:flex;flex-direction:column;gap:20px;">
+    <div class="card">
+      <h2>🚀 Startup Description</h2>
+      <div class="api-row">
+        <input id="apiUrl" type="text" value="http://localhost:8003" placeholder="API URL" />
+      </div>
+      <textarea id="startupInput" placeholder="Describe the startup to evaluate…&#10;&#10;e.g. B2B SaaS platform for automated AP/AR reconciliation targeting mid-market CFOs, with AI-powered matching and ERP integrations."></textarea>
+      <div class="examples">
+        <p>Examples:</p>
+        <div class="examples-list">
+          <div class="example-chip" onclick="fillExample(this)">B2B SaaS for automated AP/AR reconciliation targeting mid-market CFOs</div>
+          <div class="example-chip" onclick="fillExample(this)">AI-powered legal contract review platform for law firms</div>
+          <div class="example-chip" onclick="fillExample(this)">On-demand cold-chain logistics for pharmaceutical companies</div>
+          <div class="example-chip" onclick="fillExample(this)">Consumer fintech app for Gen Z savings with gamified rewards</div>
+        </div>
+      </div>
+      <button class="primary" id="runBtn" onclick="runDiligence()">
+        <span id="btnLabel">▶ Run Due Diligence</span>
+      </button>
+      <div class="status running" id="status">
+        <div class="spinner"></div>
+        <span>Running market → product → financial → investment pipeline…</span>
+      </div>
+      <div class="status error" id="errStatus"></div>
+      <a class="ls-link" href="https://smith.langchain.com" target="_blank" rel="noreferrer">
+        🔭 View traces in LangSmith ↗
+      </a>
+    </div>
+
+    <div class="card">
+      <h2>💾 Past Reports
+        <button onclick="loadMemory()" style="margin-left:auto;background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:5px 12px;cursor:pointer;font-size:0.78rem;">Refresh</button>
+      </h2>
+      <div id="memoryList" class="memory-list">
+        <div class="empty-state"><div class="es-icon">📋</div><p>No past reports.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Results -->
+  <div class="results-col">
+    <div class="card">
+      <h2>📈 Due Diligence Report</h2>
+      <div id="reportOutput">
+        <div class="empty-state">
+          <div class="es-icon">🏦</div>
+          <p>Your investment report will appear here.<br>Enter a startup description and click <strong>Run Due Diligence</strong>.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+  const API_URL = () => document.getElementById('apiUrl').value.replace(/\/$/, '');
+
+  function fillExample(el) {
+    document.getElementById('startupInput').value = el.textContent.trim();
+  }
+
+  function setLoading(loading) {
+    const btn = document.getElementById('runBtn');
+    const label = document.getElementById('btnLabel');
+    const status = document.getElementById('status');
+    btn.disabled = loading;
+    label.innerHTML = loading
+      ? '<div class="spinner" style="width:14px;height:14px;border-color:#fff;border-top-color:transparent;"></div>&nbsp;Analysing…'
+      : '▶ Run Due Diligence';
+    status.style.display = loading ? 'flex' : 'none';
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('errStatus');
+    el.className = 'status error';
+    el.textContent = msg;
+  }
+  function clearError() {
+    document.getElementById('errStatus').style.display = 'none';
+  }
+
+  function scoreTileClass(v) {
+    const n = parseFloat(v);
+    if (n >= 7) return 'st-high';
+    if (n >= 4) return 'st-mid';
+    return 'st-low';
+  }
+
+  function recClass(rec) {
+    if (!rec) return '';
+    const lc = rec.toLowerCase();
+    if (lc === 'invest') return 'rec-invest';
+    if (lc === 'pass') return 'rec-pass';
+    return 'rec-conditional';
+  }
+
+  function recIcon(rec) {
+    if (!rec) return '❓';
+    const lc = rec.toLowerCase();
+    if (lc === 'invest') return '✅';
+    if (lc === 'pass') return '❌';
+    return '⚠️';
+  }
+
+  function renderReport(data) {
+    const el = document.getElementById('reportOutput');
+    if (!data || typeof data !== 'object') {
+      el.innerHTML = `<pre class="json-raw">${JSON.stringify(data, null, 2)}</pre>`;
+      return;
+    }
+
+    const rec = (data.investment_recommendation || '').toLowerCase();
+    let html = '';
+
+    // Recommendation
+    if (data.investment_recommendation) {
+      html += `<div class="rec-pill ${recClass(rec)}">${recIcon(rec)} ${data.investment_recommendation.toUpperCase()}</div>`;
+    }
+
+    // Score tiles
+    const scoreMap = [
+      { key: 'market_score',   label: 'Market' },
+      { key: 'product_score',  label: 'Product' },
+      { key: 'financial_score',label: 'Financial' },
+      { key: 'overall_score',  label: 'Overall' },
+    ];
+    const available = scoreMap.filter(s => data[s.key] != null);
+    if (available.length) {
+      html += `<div class="scores-grid">`;
+      available.forEach(s => {
+        const val = parseFloat(data[s.key]);
+        const cls = scoreTileClass(val);
+        html += `<div class="score-tile ${cls}">
+          <div class="st-label">${s.label}</div>
+          <div class="st-val">${val}/10</div>
+          <div class="st-bar"><div class="st-bar-fill" style="width:${val * 10}%"></div></div>
+        </div>`;
+      });
+      html += `</div>`;
+    }
+
+    // Risk assessment
+    if (data.risk_assessment) {
+      html += `<div class="field"><div class="field-label">Risk Assessment</div>
+        <div class="field-value">${data.risk_assessment}</div>
+      </div>`;
+    }
+
+    // Strengths + Risks
+    if (data.key_strengths || data.key_risks) {
+      html += `<div class="section-divider"></div>
+        <div class="two-col-lists">`;
+      if (data.key_strengths) {
+        html += `<div>
+          <div class="field-label" style="margin-bottom:8px;">✅ Key Strengths</div>
+          <ul class="check-list">${(data.key_strengths || []).map(s => `<li>${s}</li>`).join('')}</ul>
+        </div>`;
+      }
+      if (data.key_risks) {
+        html += `<div>
+          <div class="field-label" style="margin-bottom:8px;">❌ Key Risks</div>
+          <ul class="cross-list">${(data.key_risks || []).map(s => `<li>${s}</li>`).join('')}</ul>
+        </div>`;
+      }
+      html += `</div>`;
+    }
+
+    // Full memo
+    if (data.report) {
+      html += `<div class="section-divider"></div>
+        <div class="field"><div class="field-label">Investment Memo</div>
+        <div class="memo-box">${data.report}</div>
+      </div>`;
+    }
+
+    // Remaining keys
+    const shown = ['investment_recommendation','market_score','product_score','financial_score','overall_score','risk_assessment','key_strengths','key_risks','report'];
+    const extra = Object.entries(data).filter(([k]) => !shown.includes(k));
+    if (extra.length) {
+      html += `<div class="section-divider"></div>
+        <div class="field"><div class="field-label">Additional</div>
+        <pre class="json-raw">${JSON.stringify(Object.fromEntries(extra), null, 2)}</pre>
+      </div>`;
+    }
+
+    el.innerHTML = html || `<pre class="json-raw">${JSON.stringify(data, null, 2)}</pre>`;
+  }
+
+  async function runDiligence() {
+    const startup = document.getElementById('startupInput').value.trim();
+    if (!startup) { showError('Please enter a startup description.'); return; }
+    clearError();
+    setLoading(true);
+    document.getElementById('reportOutput').innerHTML = '<div class="empty-state"><div class="spinner" style="width:30px;height:30px;border-width:3px;border-color:var(--accent);border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px;"></div><p>Running due diligence pipeline…<br><span style="font-size:0.8rem;color:var(--muted);">Market → Product → Financial → Investment synthesis</span></p></div>';
+
+    try {
+      const resp = await fetch(`${API_URL()}/evaluate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ startup }),
+      });
+      if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(`Server error ${resp.status}: ${txt.slice(0, 200)}`);
+      }
+      const data = await resp.json();
+      renderReport(data);
+      loadMemory();
+    } catch (e) {
+      showError(e.message);
+      document.getElementById('reportOutput').innerHTML = `<div class="empty-state"><div class="es-icon">❌</div><p>${e.message}</p></div>`;
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadMemory() {
+    try {
+      const resp = await fetch(`${API_URL()}/memory`);
+      if (!resp.ok) return;
+      const items = await resp.json();
+      const el = document.getElementById('memoryList');
+      if (!items || !items.length) {
+        el.innerHTML = '<div class="empty-state"><div class="es-icon">📋</div><p>No past reports.</p></div>';
+        return;
+      }
+      el.innerHTML = items.filter(i => i.type === 'due_diligence_report').slice().reverse().map(item => {
+        const rec = (item.result?.investment_recommendation || '').toLowerCase();
+        const startup = (item.startup || '').slice(0, 70);
+        const overall = item.result?.overall_score;
+        return `<div class="memory-item">
+          <div class="mi-rec ${rec}">${recIcon(rec)} ${rec.toUpperCase() || 'UNKNOWN'}</div>
+          <div class="mi-startup">${startup}${(item.startup || '').length > 70 ? '…' : ''}</div>
+          <div class="mi-scores">${overall != null ? `Overall: ${overall}/10` : ''}</div>
+        </div>`;
+      }).join('') || '<div class="empty-state"><div class="es-icon">📋</div><p>No due diligence reports yet.</p></div>';
+    } catch (_) {}
+  }
+
+  function recIcon(rec) {
+    if (rec === 'invest') return '✅';
+    if (rec === 'pass') return '❌';
+    if (rec === 'conditional') return '⚠️';
+    return '❓';
+  }
+
+  loadMemory();
+</script>
+</body>
+</html>

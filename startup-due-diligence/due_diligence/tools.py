@@ -4,6 +4,11 @@ from typing import Any, Callable, Dict, List
 from .llm_client import chat_completion, get_response_text
 from .utils import extract_json
 
+# This POC uses deepseek-ai/deepseek-r1-distill-llama-70b as its primary model.
+# Mistral is used for lighter analysis tools to balance cost and speed.
+_PRIMARY = "deepseek-ai/deepseek-r1-distill-llama-70b"
+_FAST = "mistralai/Mistral-7B-Instruct-v0.3"
+
 
 @dataclass
 class Tool:
@@ -14,7 +19,7 @@ class Tool:
 
 def _call_model(prompt: str, model: str, max_tokens: int = 600) -> Dict[str, Any]:
     messages = [
-        {"role": "system", "content": "You are a due diligence analysis tool. Respond with valid JSON only."},
+        {"role": "system", "content": "You are a due diligence analysis tool. Respond with valid JSON only. Do not use markdown code fences."},
         {"role": "user", "content": prompt},
     ]
     response = chat_completion(model=model, messages=messages, max_tokens=max_tokens, temperature=0.2)
@@ -27,7 +32,7 @@ def tam_analysis(market: str) -> Dict[str, Any]:
         "Estimate TAM for the market described below. Return JSON with fields: TAM, confidence, rationale.\n"
         f"market: {market}"
     )
-    return _call_model(prompt, "openai/gpt-oss-120b")
+    return _call_model(prompt, _FAST)
 
 
 def competition_analysis(market: str) -> Dict[str, Any]:
@@ -35,7 +40,7 @@ def competition_analysis(market: str) -> Dict[str, Any]:
         "Analyze the competitive landscape for the market below. Return JSON with fields: num_competitors, intensity, key_players.\n"
         f"market: {market}"
     )
-    return _call_model(prompt, "mistralai/Mistral-7B-Instruct-v0.3")
+    return _call_model(prompt, _FAST)
 
 
 def industry_trends(market: str) -> Dict[str, Any]:
@@ -43,7 +48,7 @@ def industry_trends(market: str) -> Dict[str, Any]:
         "Summarize industry trends relevant to the market below. Return JSON with fields: trend_summary, momentum, risks.\n"
         f"market: {market}"
     )
-    return _call_model(prompt, "mistralai/Mistral-7B-Instruct-v0.3")
+    return _call_model(prompt, _FAST)
 
 
 def product_assessment(product: str) -> Dict[str, Any]:
@@ -51,7 +56,7 @@ def product_assessment(product: str) -> Dict[str, Any]:
         "Assess the product below. Return JSON with fields: product_fit, strengths, weaknesses, improvement_opportunities.\n"
         f"product: {product}"
     )
-    return _call_model(prompt, "openai/gpt-oss-120b")
+    return _call_model(prompt, _FAST)
 
 
 def ux_assessment(product: str) -> Dict[str, Any]:
@@ -59,7 +64,7 @@ def ux_assessment(product: str) -> Dict[str, Any]:
         "Evaluate the UX of the product below. Return JSON with fields: ux_score, issues, recommendations.\n"
         f"product: {product}"
     )
-    return _call_model(prompt, "mistralai/Mistral-7B-Instruct-v0.3")
+    return _call_model(prompt, _FAST)
 
 
 def technical_moat(product: str) -> Dict[str, Any]:
@@ -67,7 +72,7 @@ def technical_moat(product: str) -> Dict[str, Any]:
         "Evaluate the technical moat of the product below. Return JSON with fields: moat_strength, moat_drivers, moat_risks.\n"
         f"product: {product}"
     )
-    return _call_model(prompt, "openai/gpt-oss-120b")
+    return _call_model(prompt, _FAST)
 
 
 def revenue_model(data: str) -> Dict[str, Any]:
@@ -75,7 +80,7 @@ def revenue_model(data: str) -> Dict[str, Any]:
         "Assess the revenue model below. Return JSON with fields: revenue_model_score, revenue_sources, durability_risk.\n"
         f"data: {data}"
     )
-    return _call_model(prompt, "deepseek-ai/deepseek-r1-distill-llama-70b")
+    return _call_model(prompt, _PRIMARY)
 
 
 def unit_economics(data: str) -> Dict[str, Any]:
@@ -83,7 +88,7 @@ def unit_economics(data: str) -> Dict[str, Any]:
         "Analyze unit economics for the startup described below. Return JSON with fields: unit_economics_rating, payback_period, margin_risk.\n"
         f"data: {data}"
     )
-    return _call_model(prompt, "openai/gpt-oss-120b")
+    return _call_model(prompt, _PRIMARY)
 
 
 def funding_risk(data: str) -> Dict[str, Any]:
@@ -91,7 +96,7 @@ def funding_risk(data: str) -> Dict[str, Any]:
         "Assess funding risks for the startup below. Return JSON with fields: funding_risk_score, key_risks, mitigation.\n"
         f"data: {data}"
     )
-    return _call_model(prompt, "mistralai/Mistral-7B-Instruct-v0.3")
+    return _call_model(prompt, _FAST)
 
 
 def get_tools() -> List[Tool]:

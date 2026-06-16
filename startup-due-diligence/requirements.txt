@@ -1,1 +1,4 @@
-# No external Python dependencies required; uses stdlib urllib for live Qubrid API calls.
+# Startup Due Diligence — Python dependencies
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+langsmith==0.1.147
