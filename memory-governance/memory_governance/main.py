@@ -1,14 +1,64 @@
 """
-Memory Governance System — demo entry point.
+Memory Governance System — entry point.
 
-Runs the MemoryGovernor over a set of sample items and prints governance decisions.
+Usage (CLI):
+    python -m memory_governance.main                           # batch demo
+    python -m memory_governance.main "item text" "context"    # single item
+
+Usage (API server):
+    uvicorn memory_governance.main:app --reload --port 8002
+
+Endpoints:
+    POST /consider   {"item": "...", "context": "..."}  →  governance decision
+    GET  /memory                                        →  persisted memory store
 """
 import json
 import sys
+from pathlib import Path
 
 from .agents import MemoryGovernor
 from .state import SharedState
 from .tools import get_tools
+
+# ---------------------------------------------------------------------------
+# FastAPI application
+# ---------------------------------------------------------------------------
+try:
+    from fastapi import FastAPI
+    from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.responses import HTMLResponse
+    from pydantic import BaseModel
+
+    app = FastAPI(title="Memory Governance", version="1.0.0")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    # Resolve frontend path relative to this file: ../../frontend/index.html
+    _FRONTEND = Path(__file__).resolve().parents[1] / "frontend" / "index.html"
+
+    @app.get("/", response_class=HTMLResponse)
+    def serve_frontend():
+        return HTMLResponse(content=_FRONTEND.read_text(encoding="utf-8"))
+
+    class ConsiderRequest(BaseModel):
+        item: str
+        context: str = ""
+
+    @app.post("/consider")
+    def api_consider(req: ConsiderRequest):
+        return run_demo(items=req.item, context=req.context)
+
+    @app.get("/memory")
+    def api_memory():
+        state = SharedState()
+        return state.memory_store
+
+except ImportError:
+    app = None  # type: ignore
 
 
 DEMO_ITEMS = [

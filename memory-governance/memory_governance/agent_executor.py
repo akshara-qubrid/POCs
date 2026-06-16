@@ -50,7 +50,10 @@ class AgentExecutor:
         for iteration in range(MAX_ITERATIONS):
             messages = self._build_messages(instruction)
             print(f"  [{self.name}] LLM call #{iteration + 1} (model={self.model})")
-            response = chat_completion(self.model, messages, max_tokens=self.max_tokens, temperature=0.2)
+            response = chat_completion(
+                self.model, messages, max_tokens=self.max_tokens, temperature=0.2,
+                run_name=f"{self.name} call #{iteration + 1}",
+            )
             text = get_response_text(response)
             self.state.add_message("assistant", text)
             action = extract_json(text)
