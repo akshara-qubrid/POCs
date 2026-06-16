@@ -1,4 +1,4 @@
 # Memory Governance — Python dependencies
 fastapi==0.111.0
 uvicorn[standard]==0.29.0
-langsmith==0.1.147
+langsmith>=0.8.0
