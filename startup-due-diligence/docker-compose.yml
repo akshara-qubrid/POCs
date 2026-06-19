@@ -1,0 +1,29 @@
+version: "3.9"
+
+services:
+  due-diligence:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: startup-due-diligence:latest
+    container_name: startup-due-diligence
+    ports:
+      - "8003:8003"
+    env_file:
+      # Loads QUBRID_BASE_URL, QUBRID_API_KEY, LANGCHAIN_* from the root .env
+      - ../.env
+    environment:
+      MEMORY_PATH: /app/data/due_diligence_memory.json
+    volumes:
+      # Persist the memory JSON across container restarts
+      - due_diligence_data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8003/memory')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  due_diligence_data:
