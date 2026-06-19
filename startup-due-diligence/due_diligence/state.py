@@ -1,4 +1,5 @@
 import json
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List
@@ -11,13 +12,17 @@ class Tool:
     func: Callable[[str], Any]
 
 
+def _default_memory_path() -> str:
+    """Use MEMORY_PATH env var if set (e.g. in Docker), otherwise default file."""
+    return os.environ.get("MEMORY_PATH", "due_diligence_memory.json")
+
+
 @dataclass
 class SharedState:
-    memory_path: str = "due_diligence_memory.json"
+    memory_path: str = field(default_factory=_default_memory_path)
     history: List[Dict[str, Any]] = field(default_factory=list)
     tools: Dict[str, Tool] = field(default_factory=dict)
     memory_store: List[Dict[str, Any]] = field(default_factory=list)
-    tool_log: List[Dict[str, Any]] = field(default_factory=list)
 
     def __post_init__(self):
         self.load_memory()
@@ -58,7 +63,6 @@ class SharedState:
         if not resolved_tool:
             raise KeyError(f"Tool '{tool_name}' not registered")
         result = self.tools[resolved_tool].func(tool_input)
-        self.tool_log.append({"tool": resolved_tool, "input": tool_input, "output": result})
         self.add_message("assistant", f"{resolved_tool} output: {result}")
         return result
 
@@ -88,6 +92,3 @@ class SharedState:
         else:
             self.memory_store = []
 
-    def query_memory(self, query_text: str) -> List[Dict[str, Any]]:
-        query_lower = query_text.lower()
-        return [item for item in self.memory_store if query_lower in json.dumps(item).lower()]
