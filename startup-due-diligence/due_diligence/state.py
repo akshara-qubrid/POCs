@@ -63,7 +63,10 @@ class SharedState:
         if not resolved_tool:
             raise KeyError(f"Tool '{tool_name}' not registered")
         result = self.tools[resolved_tool].func(tool_input)
-        self.add_message("assistant", f"{resolved_tool} output: {result}")
+        # Record tool output in shared history for observability, but tagged as
+        # a "tool" role so agent executors can ignore it when building their own
+        # strictly alternating local conversation.
+        self.add_message("tool", f"{resolved_tool} output: {result}")
         return result
 
     def add_memory(self, record: Dict[str, Any]) -> None:

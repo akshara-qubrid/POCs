@@ -18,8 +18,8 @@ class InvestmentLead:
                 "Return structured JSON only."
             ),
             state=state,
-            model="deepseek-ai/deepseek-r1-distill-llama-70b",
-            max_tokens=2000,
+            model="mistralai/Mistral-7B-Instruct-v0.3",
+            max_tokens=1500,
         )
 
     def evaluate(self, startup: str) -> dict:

@@ -29,45 +29,6 @@ def _safe_filename(text: str) -> str:
     return re.sub(r"[^\w\-]", "_", text).strip("_")[:60] or "pitch-deck"
 
 
-def _normalize_deck(deck: dict) -> dict:
-    """
-    Ensure the deck dict is well-formed before passing to build_pptx.
-    - slides must be a list
-    - each slide's 'content' must be a list of strings
-    - preserves slide_type, stats, and advantages fields for rich renderers
-    """
-    if not isinstance(deck, dict):
-        return {"title": "Pitch Deck", "tagline": "", "slides": []}
-
-    slides = deck.get("slides", [])
-    if not isinstance(slides, list):
-        slides = []
-
-    normalized_slides = []
-    for s in slides:
-        if not isinstance(s, dict):
-            continue
-        raw_content = s.get("content", [])
-        if isinstance(raw_content, str):
-            lines = [ln.strip(" -•▸→*") for ln in raw_content.replace(";", "\n").splitlines()]
-            content = [ln for ln in lines if ln]
-        elif isinstance(raw_content, list):
-            content = [str(item) for item in raw_content]
-        else:
-            content = []
-
-        # Carry through rich layout fields
-        normalized = {**s, "content": content}
-        if "stats" not in normalized:
-            normalized["stats"] = []
-        if "advantages" not in normalized:
-            normalized["advantages"] = {}
-        if "slide_type" not in normalized:
-            normalized["slide_type"] = ""
-        normalized_slides.append(normalized)
-
-    return {**deck, "slides": normalized_slides}
-
 # ---------------------------------------------------------------------------
 # FastAPI application
 # ---------------------------------------------------------------------------
@@ -101,27 +62,31 @@ try:
 
     @app.post("/pitch-deck")
     def api_pitch_deck(req: StartupRequest):
-        """Generate an investor pitch deck. Returns slide JSON + base64-encoded .pptx."""
-        from .pptx_builder import build_pptx
+        """Generate an investor pitch deck via the 4-stage pipeline.
+        Returns base64-encoded .pptx + metadata."""
         import base64
-        result = run_pitch_deck(req.startup)
-        result = _normalize_deck(result)
+        from .pitch_deck.pipeline import run_pipeline
+        report = run(req.startup)
         try:
-            pptx_bytes = build_pptx(result)
-            result["pptx_base64"] = base64.b64encode(pptx_bytes).decode("utf-8")
-            result["pptx_filename"] = _safe_filename(result.get("title", "pitch-deck")) + ".pptx"
+            pptx_bytes = run_pipeline(slim_report(report), startup_name=req.startup[:60])
+            filename = _safe_filename(req.startup) + ".pptx"
+            return {
+                "startup": req.startup,
+                "pptx_base64": base64.b64encode(pptx_bytes).decode("utf-8"),
+                "pptx_filename": filename,
+                "pipeline": "4-stage",
+            }
         except Exception as exc:
-            result["pptx_error"] = str(exc)
-        return result
+            return {"startup": req.startup, "pptx_error": str(exc), "pipeline": "4-stage"}
 
     @app.post("/pitch-deck/download")
     def api_pitch_deck_download(req: StartupRequest):
-        """Generate a pitch deck and return a real .pptx file for download."""
+        """Generate a pitch deck via the 4-stage pipeline and return a .pptx file for download."""
         from fastapi.responses import Response
-        from .pptx_builder import build_pptx
-        result = _normalize_deck(run_pitch_deck(req.startup))
-        pptx_bytes = build_pptx(result)
-        filename = _safe_filename(result.get("title", "pitch-deck")) + ".pptx"
+        from .pitch_deck.pipeline import run_pipeline
+        report = run(req.startup)
+        pptx_bytes = run_pipeline(slim_report(report), startup_name=req.startup[:60])
+        filename = _safe_filename(req.startup) + ".pptx"
         return Response(
             content=pptx_bytes,
             media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
@@ -135,6 +100,18 @@ try:
 
 except ImportError:
     app = None  # type: ignore
+
+
+def slim_report(report: dict) -> dict:
+    """
+    Return only the fields the pitch deck content planner needs.
+    Strips numeric scores, recommendation labels, and other metadata that
+    add tokens without helping the LLM generate better slides.
+    """
+    if not isinstance(report, dict):
+        return report
+    keys = ("report", "key_strengths", "key_risks", "risk_assessment")
+    return {k: report[k] for k in keys if k in report}
 
 
 def run(startup: str):
@@ -186,42 +163,10 @@ def run(startup: str):
 
 
 def run_pitch_deck(startup: str) -> dict:
-    """
-    Generate a pitch deck grounded in real due diligence data.
-
-    Runs the full due diligence pipeline first (market, product, financial
-    leads + investment lead synthesis), then passes the structured report
-    into generate_pitch_deck so every slide uses real scores, TAM figures,
-    competitor names, and risk items rather than LLM-invented content.
-    """
-    print(f"\n{'='*60}")
-    print(f"Pitch Deck Generator")
-    print(f"Startup: {startup}")
-    print(f"{'='*60}")
-
-    # Step 1 — run the full due diligence pipeline to get the report
-    print("\n[PitchDeck] Running due diligence pipeline for grounding data...")
-    report = run(startup)
-
-    # Step 2 — generate the deck, passing the real report as context
-    print("\n[PitchDeck] Generating slides from due diligence report...")
-    from .tools import generate_pitch_deck
-    result = generate_pitch_deck(startup, report=report)
-
-    # Unwrap common nesting patterns (LLM sometimes wraps the deck under a key)
-    if isinstance(result, dict) and "slides" not in result:
-        for key in ("pitch_deck", "deck", "result", "data", "output"):
-            if key in result and isinstance(result[key], dict) and "slides" in result[key]:
-                result = result[key]
-                break
-
-    # Persist a lean copy to memory (no pptx bytes)
-    state = SharedState()
-    lean = {k: v for k, v in result.items() if k not in ("html", "pptx_base64")} if isinstance(result, dict) else result
-    state.add_memory({"type": "pitch_deck", "startup": startup[:120], "result": lean})
-
-    print(f"\n[PitchDeck] Done — {len(result.get('slides', []))} slides generated.")
-    return result
+    raise NotImplementedError(
+        "run_pitch_deck() is removed. Use the /pitch-deck API endpoint "
+        "or call pitch_deck.pipeline.run_pipeline() directly after run()."
+    )
 
 
 if __name__ == "__main__":

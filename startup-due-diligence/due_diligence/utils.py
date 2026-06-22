@@ -3,6 +3,21 @@ import re
 from typing import Any, Dict
 
 
+def strip_think_tags(text: str) -> str:
+    """
+    Remove <think>...</think> blocks (and variants) produced by reasoning models
+    such as DeepSeek-R1 before any JSON extraction is attempted.
+    Also strips common chain-of-thought prefixes that appear before the JSON.
+    """
+    # Remove <think>...</think> blocks (greedy across newlines)
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL | re.IGNORECASE)
+    # Remove <thinking>...</thinking> blocks
+    text = re.sub(r"<thinking>.*?</thinking>", "", text, flags=re.DOTALL | re.IGNORECASE)
+    # Remove [THINK]...[/THINK] variants
+    text = re.sub(r"\[THINK\].*?\[/THINK\]", "", text, flags=re.DOTALL | re.IGNORECASE)
+    return text.strip()
+
+
 def _normalize_text(text: str) -> str:
     """Replace common non-standard unicode punctuation with ASCII equivalents."""
     replacements = {
@@ -57,6 +72,8 @@ def _sanitize_json_snippet(snippet: str) -> str:
 
 
 def extract_json(text: str) -> Dict[str, Any]:
+    # Strip reasoning/thinking blocks first so they never poison JSON parsing
+    text = strip_think_tags(text)
     text = _normalize_text(text.strip())
     if not text:
         raise ValueError("Empty LLM response")

@@ -29,8 +29,8 @@ def _load_dotenv() -> None:
 
 _load_dotenv()
 
-# Model assigned to this POC: deepseek-ai/deepseek-r1-distill-llama-70b
-DEFAULT_MODEL = "deepseek-ai/deepseek-r1-distill-llama-70b"
+# Model assigned to this POC: mistralai/Mistral-7B-Instruct-v0.3
+DEFAULT_MODEL = "mistralai/Mistral-7B-Instruct-v0.3"
 
 
 def _ls_project() -> str:
@@ -135,7 +135,23 @@ def chat_completion(
     max_tokens: int = 1024,
     temperature: float = 0.7,
     run_name: str = "chat_completion",
+    response_format: Optional[Dict] = None,
+    disable_thinking: bool = False,
 ) -> Dict:
+    """
+    Call the Qubrid chat completions endpoint.
+
+    Args:
+        model:            Model identifier.
+        messages:         OpenAI-style message list.
+        max_tokens:       Max tokens for the completion.
+        temperature:      Sampling temperature (use 0 for deterministic/JSON outputs).
+        run_name:         Label for LangSmith tracing.
+        response_format:  Optional dict, e.g. {"type": "json_object"} to enable JSON mode.
+        disable_thinking: If True, pass parameters that suppress chain-of-thought output
+                          for reasoning models (e.g. DeepSeek-R1). Sets budget_tokens=0
+                          and adds a no-think system hint.
+    """
     config = _get_config()
     url = f"{config['base_url']}/chat/completions"
     payload = {
@@ -146,14 +162,21 @@ def chat_completion(
         "top_p": 1,
         "stream": False,
     }
-    req = urllib.request.Request(
-        url,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {config['api_key']}",
-        },
-    )
+
+    # JSON mode — request structured JSON output where the API supports it
+    if response_format is not None:
+        payload["response_format"] = response_format
+
+    # Suppress chain-of-thought / thinking tokens for reasoning models
+    if disable_thinking:
+        # Qubrid/vLLM convention for disabling thinking budget
+        payload["chat_template_kwargs"] = {"thinking": False}
+        # Some endpoints use this alternative key
+        payload["thinking"] = {"type": "disabled"}
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {config['api_key']}",
+    }
 
     ls_client = _get_langsmith_client()
     run_id = uuid.uuid4()
@@ -161,28 +184,51 @@ def chat_completion(
     error_msg: Optional[str] = None
     response: Dict = {}
 
-    try:
-        with urllib.request.urlopen(req, timeout=120) as resp:
-            response = json.load(resp)
-    except urllib.error.HTTPError as exc:
-        body = exc.read().decode("utf-8", errors="replace")
-        error_msg = f"Qubrid API HTTP {exc.code}: {body}"
-    finally:
-        end_dt = datetime.datetime.now(datetime.timezone.utc)
-        if ls_client:
-            _trace(
-                client=ls_client,
-                run_id=run_id,
-                run_name=run_name,
-                messages=messages,
-                response=response,
-                start_dt=start_dt,
-                end_dt=end_dt,
-                error=error_msg,
-                model=model,
-                max_tokens=max_tokens,
-                temperature=temperature,
-            )
+    # Retry on transient errors (429 rate-limit, 502/503/504 gateway errors)
+    _RETRYABLE = {429, 502, 503, 504}
+    _MAX_RETRIES = 3
+
+    for attempt in range(_MAX_RETRIES):
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(payload).encode("utf-8"),
+            headers=headers,
+        )
+        error_msg = None
+        response = {}
+        try:
+            with urllib.request.urlopen(req, timeout=120) as resp:
+                response = json.load(resp)
+            break  # success — exit retry loop
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode("utf-8", errors="replace")
+            error_msg = f"Qubrid API HTTP {exc.code}: {body}"
+            print(f"  [llm_client] ERROR — {error_msg[:300]}")
+            if exc.code in _RETRYABLE and attempt < _MAX_RETRIES - 1:
+                wait = 2 ** attempt  # 1s, 2s, 4s back-off
+                print(f"  [llm_client] HTTP {exc.code} — retrying in {wait}s (attempt {attempt + 1}/{_MAX_RETRIES})")
+                time.sleep(wait)
+            else:
+                break  # non-retryable or last attempt
+        except Exception as exc:
+            error_msg = f"Qubrid API request failed: {exc}"
+            break
+
+    end_dt = datetime.datetime.now(datetime.timezone.utc)
+    if ls_client:
+        _trace(
+            client=ls_client,
+            run_id=run_id,
+            run_name=run_name,
+            messages=messages,
+            response=response,
+            start_dt=start_dt,
+            end_dt=end_dt,
+            error=error_msg,
+            model=model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
 
     if error_msg:
         raise RuntimeError(error_msg)

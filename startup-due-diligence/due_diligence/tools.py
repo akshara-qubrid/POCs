@@ -3,10 +3,10 @@ import json
 import re
 import urllib.parse
 import urllib.request
-from dataclasses import dataclass
-from typing import Any, Callable, Dict, List
+from typing import Any, Dict, List
 
 from .llm_client import chat_completion, get_response_text
+from .state import Tool
 from .utils import extract_json
 
 # ---------------------------------------------------------------------------
@@ -31,20 +31,13 @@ _WHISPER_LARGE_V3    = "openai/whisper-large-v3"  # Speech-to-text (audio input)
 # ---------------------------------------------------------------------------
 
 # Primary: used for financial / revenue analysis (needs strong reasoning)
-_PRIMARY    = _DEEPSEEK_R1_70B
+_PRIMARY    = _MISTRAL_7B
 
 # Fast: used for lighter analysis tools (TAM, competition, trends, UX …)
 _FAST       = _MISTRAL_7B
 
 # Structured: used for slide-deck generation (needs rich instruction following)
-_STRUCTURED = _FARA_7B
-
-
-@dataclass
-class Tool:
-    name: str
-    description: str
-    func: Callable[[str], Any]
+_STRUCTURED = _GPT_OSS_120B
 
 
 # ---------------------------------------------------------------------------
@@ -266,7 +259,7 @@ def generate_pitch_deck(startup: str, report: Dict[str, Any] = None) -> Dict[str
     max 6), stats (optional KPI cards), advantages (optional comparison dict),
     speaker_notes.
 
-    The caller converts this to a premium .pptx via pptx_builder.build_pptx().
+    The caller converts this to a premium .pptx via the 4-stage pitch_deck pipeline.
     """
     # Build a concise, structured summary of the due diligence findings so the
     # LLM has concrete numbers and facts to pull into every slide.
